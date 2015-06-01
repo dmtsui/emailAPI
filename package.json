@@ -1,5 +1,5 @@
 {
-  "name": "phoneNumbers",
+  "name": "emailTags",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -24,6 +24,7 @@
     "sqlite3": "^3.0.8",
     "underscore": "^1.8.3"
   },
+
   "devDependencies": {
     "chai": "^1.10.0",
     "mocha": "^2.1.0",
