@@ -7,19 +7,43 @@ var redis = require("redis"),
 
 var router = express.Router();
 /* GET home page. */
-router.get('/', function (req, res, next) {
+router.get('/by/email/:email', function (req, res, next) {
     var whereConditions = {};
-    var email = req.query.email;
+    var emailName = req.params.email;
+    if (emailName) {
+        client.smembers(emailName, function(err, tags){
+            if(tags.length > 0) {
+                res.json(helpers.returnCachedData({
+                    email: emailName,
+                    tags: tags
+                }));
+            } else {
+                client.sismember(["emptyset", emailName], function(err, emailExists){
+                    if (emailExists) {
+                        res.json({email:emailName, tags: []});
+                    } else {
+                        whereConditions['email'] = emailName;
+                        models.Email.findOne({
+                            where: whereConditions,
+                            include: [models.Tag]
+                        }).then(function (email) {
+                            if(email){
+                                helpers.cacheEmailData(email , email.Tags, client);
+                                res.json(helpers.formatJSONByEmail(email));
+                            }else {
+                                client.sadd("emptyset", emailName);
+                                res.json({email:emailName, tags: []});
+                            }
 
-    if (email) {
-        whereConditions['Emails.email'] = email
+                        });
+                    }
+                })
+
+            }
+        });
+    } else {
+        res.json({email:emailName, tags: []});
     }
-    models.Tag.findAll({
-        where: whereConditions,
-        include: [models.Email]
-    }).then(function (tags) {
-        res.json(helpers.formatJSON(tags, email));
-    });
 });
 
 module.exports = router;

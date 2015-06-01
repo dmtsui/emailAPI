@@ -1,6 +1,7 @@
 var models = require('../../models');
 var Q = require('q');
 var _ = require('underscore');
+var helpers = require('./helpers');
 var emailHelpers = {
     getOrCreateTags: function (tags, res) {
         var tagPromises = [];
@@ -25,15 +26,18 @@ var emailHelpers = {
         return deferred.promise;
     },
 
-    saveEmail: function (email, req, res) {
+    saveEmail: function (email, req, res, client, multi) {
         var that = this;
         if (req.body.tags) {
             var tagPromises = this.getOrCreateTags(req.body.tags, res);
             Q.all(tagPromises)
                 .done(function (tags) {
-                    email.addTags(tags);
+                    email.setTags(tags);
                     email.save()
                         .then(function (email) {
+                            if (tags.length > 0) {
+                            that.cacheEmailData(email, tags, client, multi);
+                            }
                             res.json(email);
                         });
                 });
@@ -44,31 +48,39 @@ var emailHelpers = {
                 });
         }
     },
-
-    formatJSON: function (emails) {
-        if (!emails.error) {
-            return _.map(emails, function (email) {
-                var result = {email: email.email, tags: []}
-                _.each(email.Tags, function (tag) {
-                    result.tags.push(tag.name)
-                })
-                return result;
-            });
-        } else {
-            return emails;
+    updateEmail: function(email, req, res, client){
+        multi = client.multi();
+        var newTags = req.body.tags || [];
+        var tags = [];
+        _.each(email.Tags, function(tag){
+            tags.push(tag.dataValues.name);
+        });
+        if(newTags){
+            var tagsToRemove = _.difference(tags, newTags);
+            if (tagsToRemove.length > 0) {
+                _.each(tagsToRemove, function(tag){
+                    multi.srem(email.email, tag);
+                    multi.srem(tag, email.email);
+                });
+            }
         }
-    },
-    formatJSONByTags: function (emails) {
-        if (!emails.error) {
-            var result = {};
-            _.each(emails, function (email) {
-                _.each(email.Tags, function (tag) {
-                    var tagName = tag.name;
-                    result[tagName] = result[tagName] || [];
-                    result[tagName].push(email.email);
-                })
-
+        if(req.body.email) {
+            multi.del(email.email);
+            _.each(tags, function(tag){
+                multi.srem(tag, email.email);
             });
+            email.email = req.body.email;
+        }
+        this.saveEmail(email, req, res, client, multi);
+    },
+
+    formatJSONByTags: function (emails, tags) {
+        if (!emails.error) {
+            var result = {
+                tags: tags,
+                emails: _.map(emails, function(email){
+                    return email.email
+                })};
             return result;
         } else {
             return emails;
@@ -77,13 +89,17 @@ var emailHelpers = {
 
     handleException: function (reason, res) {
         console.log(reason);
-        var msg = "";
+        var msg = "there was an error creating new email entry";
+
         switch (reason.name) {
             case "SequelizeUniqueConstraintError":
-                msg = "email failed to save due to unique constraint on the following fields: " + reason.fields.join(", ");
+                try{
+                    msg = reason.parent.message;
+                } catch(e) {
+                    console.log(e);
+                }
                 break;
             default:
-                msg = "there was an error creating new email entry";
                 break;
         }
         res.status(500);
@@ -98,5 +114,6 @@ var emailHelpers = {
         });
     }
 }
+_.extend(emailHelpers, helpers);
 
 module.exports = emailHelpers;

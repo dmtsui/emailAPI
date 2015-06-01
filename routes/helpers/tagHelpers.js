@@ -1,14 +1,9 @@
 var _ = require('underscore');
+var helpers = require('./helpers');
 var tagHelpers = {
-    formatJSON: function (tags, email) {
-        var result = {email: email, tags: []};
-        if (tags) {
-            _.each(tags, function (tag) {
-                result.tags.push(tag.name);
-            });
-        }
-        return result;
-    }
+
 }
+
+_.extend(tagHelpers, helpers);
 
 module.exports = tagHelpers;

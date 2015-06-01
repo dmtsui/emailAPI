@@ -3,23 +3,42 @@ var express = require('express');
 var router = express.Router();
 var helpers = require('./helpers/emailHelpers');
 var Q = require('q');
+var _ = require('underscore');
+var redis = require("redis"),
+    client = redis.createClient();
 
-/* GET home page. */
-router.get('/', function (req, res, next) {
+// Routes for API
+router.get('/by/tags', function (req, res, next) {
     var whereConditions = {};
-    var queryByTags = false;
-    if (req.query.tags) {
-        whereConditions['Tags.name'] = req.query.tags
-        queryByTags = true;
-    }
-    models.Email.findAll({
-        where: whereConditions,
-        include: [models.Tag]
-    }).then(function (emails) {
+    var tags = req.query.tags;
+    if (tags) {
+        client.sunion(tags, function (err, emails) {
+            if (emails.length > 0) {
+                res.json(helpers.returnCachedData({
+                    tags: tags,
+                    emails: emails
+                }));
+            } else {
+                whereConditions['Tags.name'] = tags
+                models.Email.findAll({
+                    where: whereConditions,
+                    include: [models.Tag]
+                }).then(function (emails) {
+                    _.each(emails, function (email) {
+                        helpers.cacheEmailData(email, email.Tags, client);
+                    });
+                    res.json(helpers.formatJSONByTags(emails, tags));
+                });
+            }
+        });
 
-        res.json(queryByTags ? helpers.formatJSONByTags(emails) : helpers.formatJSON(emails));
-    });
+    } else {
+        res.json({tags: [], email: []});
+    }
 });
+
+//Basic CRUD routes used by admins to update and create new email entries
+//in production these routes would be accessible by admins only
 
 router.post('/new', function (req, res, next) {
     if (req.body.email) {
@@ -27,7 +46,7 @@ router.post('/new', function (req, res, next) {
             .create({email: req.body.email})
             .then(function (email) {
                 if (email) {
-                    helpers.saveEmail(email, req, res);
+                    helpers.saveEmail(email, req, res, client);
                 } else {
                     helpers.handleError("email already exists", res);
                 }
@@ -40,36 +59,28 @@ router.post('/new', function (req, res, next) {
     }
 });
 
-router.get('/:id', function (req, res, next) {
+router.get('/lookup/:email', function (req, res, next) {
     models.Email
         .find({
-            where: {id: req.params.id},
+            where: {email: req.params.email},
             include: [models.Tag]
         })
         .then(function (email) {
-            res.json(helpers.formatJSON([email]));
+            res.json(email ? email : {error: "no email matching " + req.params.id});
         })
 });
 
 router.put('/:id', function (req, res, next) {
     models.Email
         .findOne({
-            where: {id: req.params.id}
+            where: {id: req.params.id},
+            include: [models.Tag]
         })
         .then(function (email) {
-            if (!req.body.email && !re.body.tags) {
-                req.json(helpers.formatJSON([email]));
-                return;
-            }
-
-            if (req.body.email) {
-                email.set('email', req.body.email);
-            }
-            helpers.saveEmail(email, req, res);
+            helpers.updateEmail(email, req, res, client);
         }).catch(function (reason) {
             helpers.handleException(reason, res)
         });
-
 });
 
 
