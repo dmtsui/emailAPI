@@ -20,10 +20,15 @@ var helpers = {
                 redisClient.sadd(email.email, tagName);
                 client.exists(tagName, function(err, tagExists){
                     if(!tagExists){
-                        var whereConditions = {'Tags.name': tagName}
                         models.Email.findAll({
-                            where: whereConditions,
-                            include: [models.Tag]
+                            include: [
+                                { model: models.Tag,
+                                    as: models.Tag.tableName,
+                                    where: {
+                                        'name': tagName
+                                    }
+                                }
+                            ]
                         }).then(function (emails) {
                             _.each(emails, function (email) {
                                 client.sadd(tagName, email.email);

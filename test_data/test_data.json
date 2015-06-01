@@ -1,0 +1,40 @@
+[
+  {
+    "model": "Email",
+    "data": {
+      "email": "dmtsui4@gmail.com"
+    }
+  },
+  {
+    "model": "Email",
+    "data": {
+      "email": "dmtsui2@gmail.com"
+    }
+  },
+  {
+    "model": "Email",
+    "data": {
+      "email": "dmtsui3@gmail.com"
+    }
+  },
+  {
+  "model": "Tag",
+  "data": {
+    "name": "foo",
+    "EmailsTags": [
+      { "email": "dmtsui4@gmail.com" },
+      { "email": "dmtsui2@gmail.com" }
+    ]
+  }
+},
+  {
+    "model": "Tag",
+    "data": {
+      "name": "bar",
+      "EmailsTags": [
+        { "email": "dmtsui2@gmail.com" },
+        { "email": "dmtsui3@gmail.com" }
+      ]
+    }
+  }
+]

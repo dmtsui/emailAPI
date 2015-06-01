@@ -38,7 +38,10 @@ var emailHelpers = {
                             if (tags.length > 0) {
                             that.cacheEmailData(email, tags, client, multi);
                             }
-                            res.json(email);
+                            models.Email.findById(email.dataValues.id, {include:models.Tag}).then(function(email){
+                                res.json(email);
+                            });
+
                         });
                 });
         } else {
