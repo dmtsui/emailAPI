@@ -1,3 +1,5 @@
-mysql: mysql.server start
 redis: redis-server
-node: npm start
+
+mysql: mysql.server start
+
+node-web-server: npm start

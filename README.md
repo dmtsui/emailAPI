@@ -13,6 +13,17 @@ This application utilizes the following technologies and frameworks:
  ### Install
 
      npm install
+     bundle install
+
+     Install MySQL and Redis
+
+ ### Start
+
+     npm start  (if MySQL and Redis are already running)
+
+      OR
+
+     foreman start (This will start Redis, MySQL, and Node.js in the right order)
 
  ### Test
 
